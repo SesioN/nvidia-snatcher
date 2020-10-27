@@ -110,6 +110,8 @@ function envOrNumberMax(environmentMin: string | undefined, environmentMax: stri
 }
 
 const browser = {
+	breakTimeBegin: envOrString(process.env.BREAK_TIME_BEGIN),
+	breakTimeStop: envOrString(process.env.BREAK_TIME_END),
 	isHeadless: envOrBoolean(process.env.HEADLESS),
 	isIncognito: envOrBoolean(process.env.INCOGNITO, false),
 	isTrusted: envOrBoolean(process.env.BROWSER_TRUSTED, false),

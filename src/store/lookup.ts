@@ -2,7 +2,15 @@ import {Browser, Page, Response} from 'puppeteer';
 import {Link, Store} from './model';
 import {Print, logger} from '../logger';
 import {Selector, cardPrice, pageIncludesLabels} from './includes-labels';
-import {closePage, delay, getRandomUserAgent, getSleepTime, isStatusCodeInRange} from '../util';
+import {
+	closePage,
+	delay,
+	getRandomUserAgent,
+	getSleepTime,
+	getSleepTimeUntilBreakTimeEnd,
+	isBreakTime,
+	isStatusCodeInRange
+} from '../util';
 import {config} from '../config';
 import {disableBlockerInPage} from '../adblocker';
 import {fetchLinks} from './fetch-links';
@@ -201,27 +209,37 @@ export async function tryLookupAndLoop(browser: Browser, store: Store) {
 		return;
 	}
 
-	if (store.linksBuilder) {
-		const lastRunTime = linkBuilderLastRunTimes[store.name] ?? -1;
-		const ttl = store.linksBuilder.ttl ?? Number.MAX_SAFE_INTEGER;
-		if (lastRunTime === -1 || (Date.now() - lastRunTime) > ttl) {
-			try {
-				await fetchLinks(store, browser);
-				linkBuilderLastRunTimes[store.name] = Date.now();
-			} catch (error) {
-				logger.error(error.message);
+	let sleepTime: number;
+
+	if (isBreakTime()) {
+		sleepTime = getSleepTimeUntilBreakTimeEnd() + getSleepTime(store);
+
+		logger.debug(`[${store.name}] Break time is currently activated (From ${config.browser.breakTimeBegin} to ${config.browser.breakTimeStop})`);
+	} else {
+		if (store.linksBuilder) {
+			const lastRunTime = linkBuilderLastRunTimes[store.name] ?? -1;
+			const ttl = store.linksBuilder.ttl ?? Number.MAX_SAFE_INTEGER;
+			if (lastRunTime === -1 || (Date.now() - lastRunTime) > ttl) {
+				try {
+					await fetchLinks(store, browser);
+					linkBuilderLastRunTimes[store.name] = Date.now();
+				} catch (error) {
+					logger.error(error.message);
+				}
 			}
 		}
+
+		logger.debug(`[${store.name}] Starting lookup...`);
+		try {
+			await lookup(browser, store);
+		} catch (error) {
+			logger.error(error);
+		}
+
+		sleepTime = getSleepTime(store);
+
+		logger.debug(`[${store.name}] Lookup done, next one in ${sleepTime} ms`);
 	}
 
-	logger.debug(`[${store.name}] Starting lookup...`);
-	try {
-		await lookup(browser, store);
-	} catch (error) {
-		logger.error(error);
-	}
-
-	const sleepTime = getSleepTime(store);
-	logger.debug(`[${store.name}] Lookup done, next one in ${sleepTime} ms`);
 	setTimeout(tryLookupAndLoop, sleepTime, browser, store);
 }

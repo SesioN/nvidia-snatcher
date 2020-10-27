@@ -73,3 +73,26 @@ export async function closePage(page: Page) {
 export function getRandomUserAgent(): string {
 	return config.page.userAgents[Math.floor(Math.random() * config.page.userAgents.length)];
 }
+
+// Currently only military time supported, should support both
+export function isBreakTime(): boolean {
+	if (config.browser.breakTimeStop.length === 0 || config.browser.breakTimeBegin.length === 0) {
+		return false;
+	}
+
+	const [beginHours, beginMinutes] = config.browser.breakTimeBegin.split(':');
+	const [endHours, endMinutes] = config.browser.breakTimeStop.split(':');
+	const beginTime = (new Date()).setHours(Number.parseInt(beginHours, 10) ?? 0, Number.parseInt(beginMinutes, 10) ?? 0, 0, 0);
+	const endTime = (new Date()).setHours(Number.parseInt(endHours, 10) ?? 0, Number.parseInt(endMinutes, 10) ?? 0, 0, 0);
+	const now = Date.now();
+
+	return now >= beginTime && now <= endTime;
+}
+
+export function getSleepTimeUntilBreakTimeEnd(): number {
+	const [endHours, endMinutes] = config.browser.breakTimeStop.split(':');
+	const endTime = (new Date()).setHours(Number.parseInt(endHours, 10) ?? 0, Number.parseInt(endMinutes, 10) ?? 0, 0, 0);
+	const now = Date.now();
+
+	return endTime - now;
+}
